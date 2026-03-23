@@ -1,0 +1,65 @@
+@startuml
+    left to right direction
+
+    actor User
+    actor Admin
+    actor Guest
+
+    Guest <|-- User
+    User <|-- Admin
+
+    rectangle "Announces System" {
+        usecase (register) as UC1
+        usecase (login) as UC2
+        usecase (logout) as UC3
+
+        usecase (consult questions) as UC4
+        usecase (consult question details) as UC15
+        usecase (create question) as UC5
+        usecase (edit question) as UC6
+        usecase (delete question) as UC7
+
+        usecase (consult answers) as UC8
+        usecase (create answer) as UC9
+        usecase (edit answer) as UC10
+        usecase (delete answer) as UC11
+
+        usecase (consult favorites) as UC12
+        usecase (add favorite) as UC13
+        usecase (remove favorite) as UC14
+    }
+
+    UC3 ...> UC2 : <<extend>>
+    UC2 ...> UC1 : <<extend>>
+
+    UC5 ...> UC2 : <<include>>
+    UC6 ...> UC2 : <<include>>
+    UC7 ...> UC2 : <<include>>
+    UC9 ...> UC2 : <<include>>
+    UC10 ...> UC2 : <<include>>
+    UC11 ...> UC2 : <<include>>
+    UC12 ...> UC2 : <<include>>
+    UC13 ...> UC2 : <<include>>
+    UC14 ...> UC2 : <<include>>
+
+    UC8 ...> UC15 : <<include>>
+    UC9 ...> UC15 : <<include>>
+    UC10 ...> UC15 : <<include>>
+    UC11 ...> UC15 : <<include>>
+
+    Guest ---> UC1
+    Guest ---> UC4
+    Guest ---> UC8
+    Guest ---> UC15
+
+    User ---> UC5
+    User ---> UC6
+    User ---> UC7
+    User ---> UC9
+    User ---> UC10
+    User ---> UC11
+    User ---> UC12
+    User ---> UC13
+    User ---> UC14
+
+@enduml

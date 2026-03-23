@@ -1,0 +1,26 @@
+FROM php:8.3-fpm-alpine
+
+RUN apk add --no-cache \
+    bash curl git unzip zip \
+    postgresql-dev \
+    libxml2-dev oniguruma-dev zlib-dev
+
+RUN docker-php-ext-install \
+    pdo pdo_pgsql pgsql mbstring xml bcmath opcache
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+WORKDIR /var/www/html
+
+COPY . .
+
+RUN composer install --no-dev --optimize-autoloader
+
+RUN php artisan route:cache && \
+    php artisan view:cache
+
+RUN chown -R www-data:www-data /var/www/html
+
+USER www-data
+
+CMD ["php-fpm"]

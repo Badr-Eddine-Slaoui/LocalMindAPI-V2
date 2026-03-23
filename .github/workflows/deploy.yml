@@ -1,0 +1,61 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Build Laravel image
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/localmind-backend:${{ github.sha }} -f backend/Dockerfile.prod ./backend
+
+      - name: Build Nuxt image
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/localmind-frontend:${{ github.sha }} -f frontend/Dockerfile.prod ./frontend
+
+      - name: Push Laravel image
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/localmind-backend:${{ github.sha }}
+
+      - name: Push Nuxt image
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/localmind-frontend:${{ github.sha }}
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ubuntu
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd /home/ubuntu/localmind
+
+            export IMAGE_TAG=${{ github.sha }}
+
+            echo "📦 Pulling images..."
+            docker compose -f docker-compose.prod.yml down -v
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d
+
+            echo "⏳ Waiting for container..."
+            sleep 5
+
+            echo "🚀 Running migrations..."
+            until docker exec localmind-backend php artisan migrate --force; do
+              echo "Waiting for DB..."
+              sleep 5
+            done
+
+            echo "🧠 Caching everything..."
+            docker exec localmind-backend php artisan optimize:clear
+            docker exec localmind-backend php artisan optimize
+
+            echo "🧹 Cleaning unused Docker images..."
+            docker system prune -af --volumes
+

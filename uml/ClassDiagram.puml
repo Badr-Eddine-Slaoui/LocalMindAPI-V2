@@ -1,0 +1,48 @@
+@startuml
+
+    class User {
+        - name : string
+        - email : string
+        - password : string
+        - role : string
+        - remember_token : string
+        - created_at : DateTime
+        - updated_at : DateTime
+    }
+
+    class Question {
+        - title : string
+        - description : string
+        - user_id : int
+        - created_at : DateTime
+        - updated_at : DateTime
+        + user : User
+    }
+
+    class Answer {
+        - answer : string
+        - question_id : int
+        - user_id : int
+        - created_at : DateTime
+        - updated_at : DateTime
+        + user : User
+        + question : Question
+    }
+
+    class Favorite {
+        - user_id : int
+        - question_id : int
+        - created_at : DateTime
+        - updated_at : DateTime
+        + user : User
+        + question : Question
+    }
+
+    User "1" .. "n" Question : hasMany >
+    User "1" .. "n" Answer : hasMany >
+    User "1" .. "n" Favorite : hasMany >
+
+    Question "1" .. "n" Answer : hasMany >
+    Question "1" .. "n" Favorite : hasMany >
+
+@enduml
