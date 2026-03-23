@@ -1,7 +1,7 @@
 services:
   app:
-    image: "badreddineslaoui/localmind-backend:${IMAGE_TAG}"
-    container_name: localmind-backend
+    image: "badreddineslaoui/localmindv2-backend:${IMAGE_TAG}"
+    container_name: localmindv2-backend
     restart: always
     env_file:
       - .env.laravel
@@ -18,8 +18,8 @@ services:
     restart: always
 
   nuxt:
-    image: "badreddineslaoui/localmind-frontend:${IMAGE_TAG}"
-    container_name: localmind-frontend
+    image: "badreddineslaoui/localmindv2-frontend:${IMAGE_TAG}"
+    container_name: localmindv2-frontend
     ports:
       - "3000:3000"
     restart: always
