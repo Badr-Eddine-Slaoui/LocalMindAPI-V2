@@ -51,3 +51,7 @@ Route::prefix('answers')->controller(AnswerController::class)->middleware(["auth
 /* Admin */
 
 Route::get('/admin', [AdminController::class, 'index'])->middleware(["authed:api", "admin:api"]);
+
+/* Health */
+
+Route::get('/health', fn () => response()->json(['status' => 'ok']));
