@@ -7,14 +7,10 @@ services:
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
     networks:
-      - blue_net
-      - green_net
+      - proxy_net
     restart: always
 
 networks:
-  blue_net:
+  proxy_net:
     external: true
-    name: localmind-blue_default
-  green_net:
-    external: true
-    name: localmind-green_default
+    name: localmind_proxy

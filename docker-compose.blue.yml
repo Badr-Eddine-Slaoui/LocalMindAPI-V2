@@ -2,13 +2,27 @@ services:
   app:
     image: badreddineslaoui/localmindv2-backend:${IMAGE_TAG}
     container_name: backend_blue
-    env_file:
-      - .env.laravel
+    env_file: .env.laravel
+    networks:
+      default:
+      proxy_net:
+        aliases:
+          - backend_blue
     restart: always
 
   nuxt:
     image: badreddineslaoui/localmindv2-frontend:${IMAGE_TAG}
     container_name: frontend_blue
-    env_file:
-      - .env.nuxt
+    env_file: .env.nuxt
+    networks:
+      default:
+      proxy_net:
+        aliases:
+          - frontend_blue
     restart: always
+
+networks:
+  default:
+  proxy_net:
+    external: true
+    name: localmind_proxy
