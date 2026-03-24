@@ -1,9 +1,8 @@
-:80 {
-
+http://:80 {
     @api path /api/* /storage/*
 
     handle @api {
-        reverse_proxy backend_blue_v2:80 backend_green_v2:80{
+        reverse_proxy backend_blue_v2:8000 backend_green_v2:8000 {
             lb_policy first
         }
     }
