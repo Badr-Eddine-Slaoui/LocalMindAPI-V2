@@ -26,7 +26,7 @@ fi
 
 echo "🩺 Performing health check on frontend_${TARGET}_v2..."
 if docker exec frontend_${TARGET}_v2 wget -q --spider http://localhost:3000; then
-    if docker exec backend_${TARGET}_v2 wget -q --spider http://localhost:8000; then
+    if docker exec backend_${TARGET}_v2 wget -q --spider http://127.0.0.1:80; then
         echo "✅ Health OK"
 
         echo "📦 Running Laravel migrations on backend_${TARGET}_v2..."
