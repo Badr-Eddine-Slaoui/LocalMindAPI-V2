@@ -1,4 +1,3 @@
-# 1. Switch from alpine to the standard Debian-based image to prevent glibc/musl conflicts
 FROM dunglas/frankenphp:latest
 
 WORKDIR /app
@@ -18,9 +17,6 @@ RUN if [ ! -f public/frankenphp-worker.php ]; then php artisan octane:install --
 ENV OCTANE_SERVER=frankenphp
 ENV OCTANE_HTTPS=false
 
-ENV APP_DEBUG=true
-ENV LOG_LEVEL=debug
-
 EXPOSE 8000
 
-CMD ["php", "artisan", "octane:frankenphp", "--host=0.0.0.0", "--port=8000", "--log-level=debug"]
+CMD ["php", "artisan", "octane:frankenphp", "--host=0.0.0.0", "--port=8000"]
