@@ -1,12 +1,11 @@
-FROM dunglas/frankenphp:latest-alpine
+# 1. Switch from alpine to the standard Debian-based image to prevent glibc/musl conflicts
+FROM dunglas/frankenphp:latest
 
 WORKDIR /app
 
-RUN apk add --no-cache \
-    git unzip curl bash \
-    postgresql-dev
-
-RUN docker-php-ext-install pdo pdo_pgsql pcntl
+RUN apt-get update && apt-get install -y \
+    git unzip curl bash postgresql-client && \
+    install-php-extensions pdo pdo_pgsql pcntl
 
 COPY . .
 
@@ -14,14 +13,15 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 RUN composer install --no-dev --optimize-autoloader
 
+RUN if [ ! -f public/frankenphp-worker.php ]; then php artisan octane:install --server=frankenphp; fi
+
 RUN php artisan config:cache && \
     php artisan route:cache && \
     php artisan view:cache
 
 ENV OCTANE_SERVER=frankenphp
 ENV OCTANE_HTTPS=false
-ENV OCTANE_FRANKENPHP_DISABLE_INSTALL=true
 
 EXPOSE 8000
 
-CMD ["php", "artisan", "octane:start", "--server=frankenphp", "--host=0.0.0.0", "--port=8000"]
+CMD ["php", "artisan", "octane:frankenphp", "--host=0.0.0.0", "--port=8000", "--log-level=debug"]
