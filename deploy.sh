@@ -41,7 +41,8 @@ if docker exec frontend_$TARGET wget -q --spider http://localhost:3000; then
     echo $TARGET > .active_env
     
     echo "🧹 Cleaning up old project: localmind-$ACTIVE..."
-    docker compose -p localmind-$ACTIVE -f docker-compose.$ACTIVE.yml down
+    docker compose -p localmind-$ACTIVE -f docker-compose.$ACTIVE.yml down -v --remove-orphans
+    docker network prune -f --filter "label=com.docker.compose.project=localmind-$ACTIVE"
     docker image prune -af
 
     echo "🎉 Blue-Green Deploy successful!"
