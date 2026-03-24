@@ -25,15 +25,15 @@ if ! docker ps --format '{{.Names}}' | grep -q "^caddy$"; then
 fi
 
 echo "🩺 Performing health check on frontend_${TARGET}_v2..."
-if docker exec frontend_{$TARGET}_v2 wget -q --spider http://localhost:3000; then
-    if docker exec backend_{$TARGET}_v2 wget -q --spider http://localhost:8000; then
+if docker exec frontend_${TARGET}_v2 wget -q --spider http://localhost:3000; then
+    if docker exec backend_${TARGET}_v2 wget -q --spider http://localhost:8000; then
         echo "✅ Health OK"
 
         echo "📦 Running Laravel migrations on backend_${TARGET}_v2..."
-        docker exec backend_{$TARGET}_v2 php artisan migrate --force
+        docker exec backend_${TARGET}_v2 php artisan migrate --force
 
-        docker exec backend_{$TARGET}_v2 php artisan optimize:clear
-        docker exec backend_{$TARGET}_v2 php artisan optimize
+        docker exec backend_${TARGET}_v2 php artisan optimize:clear
+        docker exec backend_${TARGET}_v2 php artisan optimize
         
         echo $TARGET > .active_env
         
@@ -44,12 +44,10 @@ if docker exec frontend_{$TARGET}_v2 wget -q --spider http://localhost:3000; the
 
         echo "🎉 Blue-Green Deploy successful!"
     else
-        echo "❌ Health check failed. Rolling back $TARGET..."
-        docker compose -p localmind-$TARGET-v2 -f docker-compose.$TARGET.v2.yml down
+        echo "❌ Backend Health check failed. Rolling back $TARGET..."
         exit 1
     fi
 else
-    echo "❌ Health check failed. Rolling back $TARGET..."
-    docker compose -p localmind-$TARGET-v2 -f docker-compose.$TARGET.v2.yml down
+    echo "❌ Frontend Health check failed. Rolling back $TARGET..."
     exit 1
 fi
