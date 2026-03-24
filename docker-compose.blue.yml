@@ -1,0 +1,14 @@
+services:
+  app:
+    image: badreddineslaoui/localmindv2-backend:${IMAGE_TAG}
+    container_name: backend_blue
+    env_file:
+      - .env.laravel
+    restart: always
+
+  nuxt:
+    image: badreddineslaoui/localmindv2-frontend:${IMAGE_TAG}
+    container_name: frontend_blue
+    env_file:
+      - .env.nuxt
+    restart: always
