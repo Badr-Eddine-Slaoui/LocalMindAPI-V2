@@ -32,7 +32,13 @@ if docker exec frontend_$TARGET wget -q --spider http://localhost:3000; then
     docker exec backend_$TARGET php artisan migrate --force
 
     echo "🔁 Switching Nginx traffic to $TARGET..."
-    sed -i "s/set \$env .*/set \$env $TARGET;/" nginx/default.conf
+    
+    sed "s/set \$env .*/set \$env $TARGET;/" nginx/default.conf > nginx/default.conf.tmp
+    
+    cat nginx/default.conf.tmp > nginx/default.conf
+    
+    rm nginx/default.conf.tmp
+
     docker exec nginx nginx -s reload
 
     docker exec backend_$TARGET php artisan optimize:clear
