@@ -22,6 +22,9 @@ RUN php artisan config:cache && \
 ENV OCTANE_SERVER=frankenphp
 ENV OCTANE_HTTPS=false
 
+ENV APP_DEBUG=true
+ENV LOG_LEVEL=debug
+
 EXPOSE 8000
 
 CMD ["php", "artisan", "octane:frankenphp", "--host=0.0.0.0", "--port=8000", "--log-level=debug"]
