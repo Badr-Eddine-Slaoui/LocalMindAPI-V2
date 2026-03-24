@@ -18,9 +18,9 @@ RUN php artisan config:cache && \
     php artisan route:cache && \
     php artisan view:cache
 
-RUN chown -R www-data:www-data /app
-
-USER www-data
+ENV OCTANE_SERVER=frankenphp
+ENV OCTANE_HTTPS=false
+ENV OCTANE_FRANKENPHP_DISABLE_INSTALL=true
 
 EXPOSE 8000
 
