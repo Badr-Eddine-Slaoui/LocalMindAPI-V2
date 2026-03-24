@@ -15,10 +15,6 @@ RUN composer install --no-dev --optimize-autoloader
 
 RUN if [ ! -f public/frankenphp-worker.php ]; then php artisan octane:install --server=frankenphp; fi
 
-RUN php artisan config:cache && \
-    php artisan route:cache && \
-    php artisan view:cache
-
 ENV OCTANE_SERVER=frankenphp
 ENV OCTANE_HTTPS=false
 
