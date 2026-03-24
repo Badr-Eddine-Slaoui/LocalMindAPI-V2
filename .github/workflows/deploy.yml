@@ -19,13 +19,13 @@ jobs:
 
       - name: Build images
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/localmindv2-backend:${IMAGE_TAG} -f backend/Dockerfile.prod ./backend
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/localmindv2-frontend:${IMAGE_TAG} -f frontend/Dockerfile.prod ./frontend
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/localmindv2-backend-v2:${IMAGE_TAG} -f backend/Dockerfile.prod.v2 ./backend
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/localmindv2-frontend-v2:${IMAGE_TAG} -f frontend/Dockerfile.prod ./frontend
 
       - name: Push images
         run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/localmindv2-backend:${IMAGE_TAG}
-          docker push ${{ secrets.DOCKER_USERNAME }}/localmindv2-frontend:${IMAGE_TAG}
+          docker push ${{ secrets.DOCKER_USERNAME }}/localmindv2-backend-v2:${IMAGE_TAG}
+          docker push ${{ secrets.DOCKER_USERNAME }}/localmindv2-frontend-v2:${IMAGE_TAG}
 
       - name: Deploy
         uses: appleboy/ssh-action@v1
@@ -34,4 +34,4 @@ jobs:
           username: ubuntu
           key: ${{ secrets.SSH_KEY }}
           script: |
-            bash /home/ubuntu/localmindv2/deploy.sh ${{ env.IMAGE_TAG }}
+            bash /home/ubuntu/localmindv2/deploy-v2.sh ${{ env.IMAGE_TAG }}

@@ -1,0 +1,30 @@
+services:
+  backend_green_v2:
+    image: badreddineslaoui/localmindv2-backend-v2:${IMAGE_TAG}
+    container_name: backend_green_v2
+    env_file: .env.laravel
+    expose:
+      - "8000"
+    networks:
+      default:
+      proxy_net:
+        aliases:
+          - backend_green_v2
+    restart: always
+
+  frontend_green_v2:
+    image: badreddineslaoui/localmindv2-frontend-v2:${IMAGE_TAG}
+    container_name: frontend_green_v2
+    env_file: .env.nuxt
+    networks:
+      default:
+      proxy_net:
+        aliases:
+          - frontend_green_v2
+    restart: always
+
+networks:
+  default:
+  proxy_net:
+    external: true
+    name: localmind_proxy

@@ -1,0 +1,16 @@
+:80 {
+
+    @api path /api/* /storage/*
+
+    handle @api {
+        reverse_proxy backend_blue_v2:8000 backend_green_v2:8000 {
+            lb_policy first
+        }
+    }
+
+    handle {
+        reverse_proxy frontend_blue_v2:3000 frontend_green_v2:3000 {
+            lb_policy first
+        }
+    }
+}
