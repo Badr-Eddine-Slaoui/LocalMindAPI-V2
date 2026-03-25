@@ -1,0 +1,254 @@
+.github/workflows/deploy.yml:
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set tag
+        run: echo "IMAGE_TAG=${GITHUB_SHA}" >> $GITHUB_ENV
+
+      - name: Login DockerHub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Build images
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/localmindv2-backend-v2:${IMAGE_TAG} -f backend/Dockerfile.prod.v2 ./backend
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/localmindv2-frontend-v2:${IMAGE_TAG} -f frontend/Dockerfile.prod ./frontend
+
+      - name: Push images
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/localmindv2-backend-v2:${IMAGE_TAG}
+          docker push ${{ secrets.DOCKER_USERNAME }}/localmindv2-frontend-v2:${IMAGE_TAG}
+
+      - name: Deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ubuntu
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            bash /home/ubuntu/localmindv2/deploy-v2.sh ${{ env.IMAGE_TAG }}
+
+-------------------------------------------------------
+
+./caddy/Caddyfile:
+:80 {
+
+    @api path /api/* /storage/*
+
+    handle @api {
+        reverse_proxy backend_active:8000
+    }
+
+    handle {
+        reverse_proxy frontend_active:3000
+    }
+}
+
+-------------------------------------------------------
+
+./deploy-v2.sh:
+#!/bin/bash
+set -e
+
+cd /home/ubuntu/localmindv2
+
+IMAGE_TAG=$1
+ACTIVE=$(cat .active_env 2>/dev/null || echo "")
+TARGET=$([ "$ACTIVE" = "blue" ] && echo "green" || echo "blue")
+
+echo "🔗 Ensuring network exists..."
+docker network inspect localmind_proxy >/dev/null 2>&1 || docker network create localmind_proxy
+
+echo "🚀 Deploying to $TARGET with tag $IMAGE_TAG"
+export IMAGE_TAG=$IMAGE_TAG
+
+docker compose -p localmind-$TARGET-v2 -f docker-compose.$TARGET.v2.yml pull
+docker compose -p localmind-$TARGET-v2 -f docker-compose.$TARGET.v2.yml up -d
+
+echo "⏳ Waiting for containers..."
+sleep 10
+
+echo "🔗 Ensuring Caddy is running..."
+if ! docker ps --format '{{.Names}}' | grep -q "^caddy$"; then
+    docker compose -f docker-compose.proxy.v2.yml up -d
+fi
+
+echo "🩺 Health check..."
+if docker exec frontend_${TARGET}_v2 wget -q --spider http://localhost:3000; then
+    if docker exec backend_${TARGET}_v2 curl -f http://localhost:8000/api/health > /dev/null 2>&1; then
+
+        echo "✅ Health OK"
+
+        echo "📦 Running Laravel tasks..."
+        docker exec backend_${TARGET}_v2 php artisan migrate --force
+        docker exec backend_${TARGET}_v2 php artisan optimize:clear
+        docker exec backend_${TARGET}_v2 php artisan optimize
+
+        if [ -z "$ACTIVE" ]; then
+            echo "⚡ First deployment detected..."
+
+            docker network disconnect localmind_proxy backend_${TARGET}_v2 || true
+            docker network disconnect localmind_proxy frontend_${TARGET}_v2 || true
+
+            docker network connect --alias backend_active localmind_proxy backend_${TARGET}_v2
+            docker network connect --alias frontend_active localmind_proxy frontend_${TARGET}_v2
+
+            echo $TARGET > .active_env
+
+            echo "🎉 First deploy ready!"
+            exit 0
+        fi
+
+        echo "🔁 Switching traffic to $TARGET..."
+
+        if docker ps --format '{{.Names}}' | grep -q "^backend_${ACTIVE}_v2$"; then
+            docker network disconnect localmind_proxy backend_${ACTIVE}_v2 || true
+            docker network connect localmind_proxy backend_${ACTIVE}_v2 || true
+        fi
+
+        if docker ps --format '{{.Names}}' | grep -q "^frontend_${ACTIVE}_v2$"; then
+            docker network disconnect localmind_proxy frontend_${ACTIVE}_v2 || true
+            docker network connect localmind_proxy frontend_${ACTIVE}_v2 || true
+        fi
+
+        docker network disconnect localmind_proxy backend_${TARGET}_v2 || true
+        docker network disconnect localmind_proxy frontend_${TARGET}_v2 || true
+
+        docker network connect --alias backend_active localmind_proxy backend_${TARGET}_v2
+        docker network connect --alias frontend_active localmind_proxy frontend_${TARGET}_v2
+
+        echo $TARGET > .active_env
+
+        echo "🧹 Cleaning old environment..."
+        docker compose -p localmind-$ACTIVE-v2 -f docker-compose.$ACTIVE.v2.yml down -v --remove-orphans
+
+        docker image prune -af
+
+        echo "🎉 Deploy successful!"
+
+    else
+        echo "❌ Backend failed"
+        exit 1
+    fi
+else
+    echo "❌ Frontend failed"
+    exit 1
+fi
+
+-------------------------------------------------------
+
+./backend/Dockerfile.prod.v2:
+FROM dunglas/frankenphp:latest
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    git unzip curl bash postgresql-client && \
+    install-php-extensions pdo pdo_pgsql pcntl
+
+COPY . .
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+RUN composer install --no-dev --optimize-autoloader
+
+RUN if [ ! -f public/frankenphp-worker.php ]; then php artisan octane:install --server=frankenphp; fi
+
+ENV OCTANE_SERVER=frankenphp
+ENV OCTANE_HTTPS=false
+
+EXPOSE 8000
+
+CMD ["php", "artisan", "octane:frankenphp", "--host=0.0.0.0", "--port=8000"]
+
+
+
+-------------------------------------------------------
+
+./frontend/Dockerfile.prod:
+FROM node:lts-alpine
+
+WORKDIR /app
+
+COPY . .
+
+RUN npm install
+RUN npm run build
+
+EXPOSE 3000
+
+CMD ["node", ".output/server/index.mjs"]
+
+-------------------------------------------------------
+
+docker-compose.blue.v2.yml:
+services:
+  backend_blue_v2:
+    image: badreddineslaoui/localmindv2-backend-v2:${IMAGE_TAG}
+    container_name: backend_blue_v2
+    env_file: .env.laravel
+    expose:
+      - "8000"
+    networks:
+      - default
+      - proxy_net
+    restart: always
+
+  frontend_blue_v2:
+    image: badreddineslaoui/localmindv2-frontend-v2:${IMAGE_TAG}
+    container_name: frontend_blue_v2
+    env_file: .env.nuxt
+    networks:
+      - default
+      - proxy_net
+    restart: always
+
+networks:
+  default:
+  proxy_net:
+    external: true
+    name: localmind_proxy
+-------------------------------------------------------
+
+docker-compose.green.v2.yml: the same as docker-compose.blue.v2.yml but with green
+
+-------------------------------------------------------
+
+docker-compose.proxy.v2.yml:
+services:
+  caddy:
+    image: caddy:alpine
+    container_name: caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - proxy_net
+    restart: always
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  proxy_net:
+    external: true
+    name: localmind_proxy
+
+-------------------------------------------------------
+
+That's my current setup for deploying to AWS. I want to switch my backend to use Laravel octane with FrenkenPHP instead of FPM.
+Also I want to switch from Nginx to Caddy. help me with that, please. And give me all the necessary changements to achieve this.

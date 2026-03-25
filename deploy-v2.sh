@@ -4,7 +4,7 @@ set -e
 cd /home/ubuntu/localmindv2
 
 IMAGE_TAG=$1
-ACTIVE=$(cat .active_env 2>/dev/null || echo "blue")
+ACTIVE=$(cat .active_env 2>/dev/null || echo "")
 TARGET=$([ "$ACTIVE" = "blue" ] && echo "green" || echo "blue")
 
 echo "🔗 Ensuring network exists..."
@@ -26,7 +26,7 @@ fi
 
 echo "🩺 Health check..."
 if docker exec frontend_${TARGET}_v2 wget -q --spider http://localhost:3000; then
-    if docker exec backend_${TARGET}_v2 wget -q --spider http://localhost:8000/api/health; then
+    if docker exec backend_${TARGET}_v2 curl -f http://localhost:8000/api/health > /dev/null 2>&1; then
 
         echo "✅ Health OK"
 
@@ -35,16 +35,36 @@ if docker exec frontend_${TARGET}_v2 wget -q --spider http://localhost:3000; the
         docker exec backend_${TARGET}_v2 php artisan optimize:clear
         docker exec backend_${TARGET}_v2 php artisan optimize
 
+        if [ -z "$ACTIVE" ]; then
+            echo "⚡ First deployment detected..."
+
+            docker network disconnect localmind_proxy backend_${TARGET}_v2 || true
+            docker network disconnect localmind_proxy frontend_${TARGET}_v2 || true
+
+            docker network connect --alias backend_active localmind_proxy backend_${TARGET}_v2
+            docker network connect --alias frontend_active localmind_proxy frontend_${TARGET}_v2
+
+            echo $TARGET > .active_env
+
+            echo "🎉 First deploy ready!"
+            exit 0
+        fi
+
         echo "🔁 Switching traffic to $TARGET..."
 
-        # Remove alias from old containers (if exist)
-        docker network disconnect localmind_proxy backend_${ACTIVE}_v2 || true
-        docker network disconnect localmind_proxy frontend_${ACTIVE}_v2 || true
+        if docker ps --format '{{.Names}}' | grep -q "^backend_${ACTIVE}_v2$"; then
+            docker network disconnect localmind_proxy backend_${ACTIVE}_v2 || true
+            docker network connect localmind_proxy backend_${ACTIVE}_v2 || true
+        fi
 
-        docker network connect localmind_proxy backend_${ACTIVE}_v2 || true
-        docker network connect localmind_proxy frontend_${ACTIVE}_v2 || true
+        if docker ps --format '{{.Names}}' | grep -q "^frontend_${ACTIVE}_v2$"; then
+            docker network disconnect localmind_proxy frontend_${ACTIVE}_v2 || true
+            docker network connect localmind_proxy frontend_${ACTIVE}_v2 || true
+        fi
 
-        # Add alias to new containers
+        docker network disconnect localmind_proxy backend_${TARGET}_v2 || true
+        docker network disconnect localmind_proxy frontend_${TARGET}_v2 || true
+
         docker network connect --alias backend_active localmind_proxy backend_${TARGET}_v2
         docker network connect --alias frontend_active localmind_proxy frontend_${TARGET}_v2
 
