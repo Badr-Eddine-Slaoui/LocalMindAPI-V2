@@ -6,10 +6,8 @@ services:
     expose:
       - "8000"
     networks:
-      default:
-      proxy_net:
-        aliases:
-          - backend_green_v2
+      - default
+      - proxy_net
     restart: always
 
   frontend_green_v2:
@@ -17,10 +15,8 @@ services:
     container_name: frontend_green_v2
     env_file: .env.nuxt
     networks:
-      default:
-      proxy_net:
-        aliases:
-          - frontend_green_v2
+      - default
+      - proxy_net
     restart: always
 
 networks:
